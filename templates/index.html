@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Music Generating App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Music Generating App</h1>
+    <form id="musicForm">
+        <label for="mode">Generation Mode:</label>
+        <select id="mode" name="mode" title="Choose the music generation method">
+            <option value="rule">Rule-Based</option>
+            <option value="lstm">LSTM Model (Coming Soon)</option>
+        </select><br/><br/>
+
+        <label for="tempo">Tempo (BPM):</label>
+        <input type="number" id="tempo" name="tempo" value="120" min="40" max="240" title="Set the tempo in beats per minute" /><br/><br/>
+
+        <label for="key">Key Signature:</label>
+        <select id="key" name="key" title="Select the key signature">
+            <option value="C">C Major</option>
+            <option value="G">G Major</option>
+            <option value="D">D Major</option>
+            <option value="A">A Major</option>
+            <option value="E">E Major</option>
+            <option value="B">B Major</option>
+            <option value="F#">F# Major</option>
+            <option value="C#">C# Major</option>
+            <option value="F">F Major</option>
+            <option value="Bb">Bb Major</option>
+            <option value="Eb">Eb Major</option>
+            <option value="Ab">Ab Major</option>
+            <option value="Db">Db Major</option>
+            <option value="Gb">Gb Major</option>
+            <option value="Cb">Cb Major</option>
+        </select><br/><br/>
+
+        <label for="length">Length (bars):</label>
+        <input type="number" id="length" name="length" value="8" min="1" max="64" title="Set the length of the piece in bars" /><br/><br/>
+
+        <label for="instruments">Select Instruments:</label>
+        <select id="instruments" name="instruments" multiple size="5" title="Select one or more instruments">
+            <option value="Piano" selected>Piano</option>
+            <option value="Violin">Violin</option>
+            <option value="Flute">Flute</option>
+            <option value="Clarinet">Clarinet</option>
+            <option value="Trumpet">Trumpet</option>
+            <option value="Guitar">Guitar</option>
+            <option value="Drums">Drums</option>
+        </select><br/><br/>
+
+        <button type="submit" id="generateBtn" title="Click to generate music">Generate Music</button>
+    </form>
+
+    <!-- Player Section -->
+    <div id="playerSection" style="display:none; margin-top:20px;">
+        <audio id="audioPlayer" controls></audio>
+        <br/>
+        <label for="downloadType">Download as:</label>
+        <select id="downloadType" title="Select file type to download">
+            <option value="mp3">MP3</option>
+            <option value="midi">MIDI</option>
+        </select>
+        <a id="downloadBtn" href="#" download style="margin-left: 10px; background-color: #27ae60; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: background-color 0.3s ease;">Download</a>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+/* General body styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f9f9f9;
+    color: #333;
+    margin: 20px;
+    padding: 0;
+}
+
+/* Heading */
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+/* Form styles */
+form#musicForm {
+    max-width: 500px;
+    margin: 0 auto 40px auto;
+    background: #fff;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+form#musicForm label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #34495e;
+}
+
+form#musicForm select,
+form#musicForm input[type="number"],
+form#musicForm select[multiple] {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 18px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+form#musicForm select[multiple] {
+    height: 120px;
+}
+
+form#musicForm select:focus,
+form#musicForm input[type="number"]:focus,
+form#musicForm select[multiple]:focus {
+    border-color: #2980b9;
+    outline: none;
+}
+
+/* Generate button */
+#generateBtn {
+    background-color: #2980b9;
+    color: white;
+    font-weight: 700;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.1rem;
+    transition: background-color 0.3s ease;
+}
+
+#generateBtn:hover:not(:disabled) {
+    background-color: #1c5980;
+}
+
+#generateBtn:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+/* Player section */
+#playerSection {
+    max-width: 500px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 20px 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+/* Audio player */
+#audioPlayer {
+    width: 100%;
+    outline: none;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Download button */
+#downloadBtn {
+    display: inline-block;
+    margin-top: 15px;
+    background-color: #27ae60;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+#downloadBtn:hover {
+    background-color: #1e8449;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    form#musicForm, #playerSection {
+        width: 90%;
+        padding: 15px 20px;
+    }
+}
+
+/* Hide download button in audio controls (works in some browsers) */
+audio::-internal-media-controls-download-button {
+    display:none;
+}
+
+audio::-webkit-media-controls-enclosure {
+    overflow: hidden;
+}
+
+audio::-webkit-media-controls-panel {
+    width: calc(100% + 30px); /* Adjust width to hide download button */
+}
+
+/* Fallback: hide download button in Firefox */
+audio::-moz-media-controls-download-button {
+    display:none;
+}

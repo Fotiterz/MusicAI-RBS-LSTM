@@ -1,0 +1,18 @@
+# Ignore soundfont file due to size
+FluidR3_GM.sf2
+
+# Ignore output files
+output/
+*.mid
+*.mp3
+*.wav
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment
+venv/
+env/

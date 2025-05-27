@@ -1,0 +1,7 @@
+flask
+tensorflow
+music21
+pydub
+numpy
+scipy
+pretty_midi
