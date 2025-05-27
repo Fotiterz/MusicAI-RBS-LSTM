@@ -75,6 +75,30 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
     - generated sequence as a list of note indices
     """
     from music21 import key as m21key, pitch as m21pitch, interval, chord
+    import pickle
+    import os
+    
+    # Handle missing pitchnames by loading from file if available
+    if pitchnames is None:
+        try:
+            if os.path.exists('pitchnames.pkl'):
+                with open('pitchnames.pkl', 'rb') as f:
+                    pitchnames = pickle.load(f)
+                print(f"Loaded pitchnames from file, length: {len(pitchnames)}")
+            else:
+                # Create a default set of pitchnames if file doesn't exist
+                print("Warning: No pitchnames provided and no pitchnames.pkl file found.")
+                # Create a simple chromatic scale as fallback
+                pitchnames = [f"C{i}" for i in range(1, 6)] + [f"D{i}" for i in range(1, 6)] + \
+                             [f"E{i}" for i in range(1, 6)] + [f"F{i}" for i in range(1, 6)] + \
+                             [f"G{i}" for i in range(1, 6)] + [f"A{i}" for i in range(1, 6)] + \
+                             [f"B{i}" for i in range(1, 6)]
+                print(f"Created default pitchnames, length: {len(pitchnames)}")
+        except Exception as e:
+            print(f"Error loading pitchnames: {e}")
+            # Create a minimal set as absolute fallback
+            pitchnames = [f"C{i}" for i in range(1, 6)]
+            print(f"Created minimal fallback pitchnames, length: {len(pitchnames)}")
     
     generated = []
     sequence = seed_sequence.copy()
@@ -129,12 +153,15 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
         prediction = model.predict(sequence[np.newaxis, :, :], verbose=0)[0]
         
         # Apply music theory mask to prediction probabilities
-        if pitchnames:
+        if pitchnames and len(pitchnames) > 0:
             # Create a weighted mask that favors notes in the scale/chord
             mask = np.ones_like(prediction) * 0.1  # Base weight for all notes
             
             # Higher weights for notes in the scale
             for idx, pitch_name in enumerate(pitchnames):
+                if idx >= len(prediction):
+                    continue  # Skip if index is out of bounds
+                    
                 try:
                     # Handle chord notation (e.g., "0.1.2")
                     if '.' in pitch_name:
@@ -183,7 +210,8 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
         if recent_notes:
             penalty_strength = 0.8
             for note_idx in recent_notes[-3:]:  # Focus on most recent notes
-                prediction[note_idx] *= (1 - penalty_strength)
+                if note_idx < len(prediction):
+                    prediction[note_idx] *= (1 - penalty_strength)
                 
             # Encourage melodic direction based on phrase position
             if current_phrase_pos < phrase_length / 2:
@@ -194,7 +222,7 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
                 melodic_direction = -1
                 
             # If we have previous notes, try to guide the melodic contour
-            if len(recent_notes) >= 2 and len(pitchnames) > 0:
+            if len(recent_notes) >= 2 and pitchnames and len(pitchnames) > 0:
                 last_note_idx = recent_notes[-1]
                 if last_note_idx < len(pitchnames):
                     last_pitch_name = pitchnames[last_note_idx]
@@ -205,6 +233,9 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
                         
                         # Boost probabilities for notes in the desired direction
                         for idx, pitch_name in enumerate(pitchnames):
+                            if idx >= len(prediction):
+                                continue  # Skip if index is out of bounds
+                                
                             try:
                                 current_pitch = m21pitch.Pitch(pitch_name)
                                 # Calculate interval direction
@@ -229,6 +260,11 @@ def generate_music(model, seed_sequence, length=100, vocab_size=3803, temperatur
             temperature_adjusted = max(0.7, temperature - 0.3)
         
         index = sample_with_temperature(prediction, temperature_adjusted)
+        
+        # Ensure index is within valid range
+        if index >= vocab_size:
+            index = index % vocab_size
+            
         generated.append(index)
         
         # Update recent notes list

@@ -20,62 +20,98 @@ def sequence_to_stream(sequence, pitchnames, length=100):
     Convert a sequence of note indices to a music21 stream using pitchnames vocabulary.
     """
     s = stream.Stream()
+    
+    # Handle case when pitchnames is None
+    if pitchnames is None:
+        print("Warning: No pitchnames provided for sequence_to_stream. Creating default notes.")
+        # Create a simple chromatic scale as default notes
+        default_notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
+        
+        for idx in sequence[:length]:
+            # Use modulo to map any index to our default notes
+            note_idx = idx % len(default_notes)
+            try:
+                n = note.Note(default_notes[note_idx], quarterLength=0.25)
+                s.append(n)
+            except Exception as e:
+                print(f"Error creating default note: {e}")
+                n = note.Rest(quarterLength=0.25)
+                s.append(n)
+        return s
+    
+    # Normal processing with pitchnames
     for idx in sequence[:length]:
         if idx == 0:
             # Treat 0 as a rest
             n = note.Rest(quarterLength=0.25)
-        else:
-            if idx >= len(pitchnames):
-                # Skip invalid indices
-                continue
-            pitch_name = pitchnames[idx]
+            s.append(n)
+            continue
+            
+        # Handle index out of range
+        if idx >= len(pitchnames):
+            # Use modulo to get a valid index
+            idx = idx % len(pitchnames)
+            
+        pitch_name = pitchnames[idx]
+        
+        try:
             if '.' in pitch_name:
                 # It's a chord
                 chord_notes = pitch_name.split('.')
                 try:
+                    # Try to interpret as integers (MIDI note numbers)
                     chord_notes = [int(n) for n in chord_notes]
                     c = chord.Chord(chord_notes, quarterLength=0.25)
                     n = c
-                except Exception:
-                    # fallback to treat as notes separated by dots
-                    notes = [note.Note(n, quarterLength=0.25) for n in pitch_name.split('.')]
-                    n = chord.Chord(notes, quarterLength=0.25)
+                except ValueError:
+                    # Not integers, treat as note names
+                    try:
+                        notes = [note.Note(n, quarterLength=0.25) for n in pitch_name.split('.')]
+                        n = chord.Chord(notes, quarterLength=0.25)
+                    except Exception as e:
+                        print(f"Error creating chord from {pitch_name}: {e}")
+                        n = note.Rest(quarterLength=0.25)
             else:
                 # Fix pitch name format if octave is before pitch letter
                 # Example error: '5' instead of 'C5'
-                # Check if pitch_name is a digit or starts with digit
                 if pitch_name and (pitch_name[0].isdigit()):
                     # Attempt to reorder to pitch letter + octave
-                    # Find first letter in pitch_name
                     letters = [c for c in pitch_name if c.isalpha()]
                     digits = [c for c in pitch_name if c.isdigit()]
+                    
                     if letters and digits:
-                        # More robust correction: find first letter and first digit positions
-                        first_letter_index = next((i for i, c in enumerate(pitch_name) if c.isalpha()), None)
-                        first_digit_index = next((i for i, c in enumerate(pitch_name) if c.isdigit()), None)
-                        if first_letter_index is not None and first_digit_index is not None:
-                            # Reorder pitch name to letter(s) + digit(s)
-                            letters_part = ''.join([c for c in pitch_name if c.isalpha()])
-                            digits_part = ''.join([c for c in pitch_name if c.isdigit()])
-                            corrected_pitch = letters_part + digits_part
-                            try:
-                                n = note.Note(corrected_pitch, quarterLength=0.25)
-                            except Exception:
-                                # fallback to original pitch_name if corrected fails
-                                n = note.Rest(quarterLength=0.25)
-                        else:
-                            # fallback to original pitch_name
+                        # Reorder pitch name to letter(s) + digit(s)
+                        letters_part = ''.join(letters)
+                        digits_part = ''.join(digits)
+                        corrected_pitch = letters_part + digits_part
+                        
+                        try:
+                            n = note.Note(corrected_pitch, quarterLength=0.25)
+                        except Exception as e:
+                            print(f"Error creating note from corrected pitch {corrected_pitch}: {e}")
                             n = note.Rest(quarterLength=0.25)
                     else:
-                        # fallback to original pitch_name
+                        # If no letters or no digits, use rest
                         n = note.Rest(quarterLength=0.25)
                 else:
-                    # Additional check: if pitch_name is a single digit, treat as rest
+                    # Check if pitch_name is a single digit
                     if pitch_name.isdigit():
                         n = note.Rest(quarterLength=0.25)
                     else:
-                        n = note.Note(pitch_name, quarterLength=0.25)
+                        try:
+                            n = note.Note(pitch_name, quarterLength=0.25)
+                        except Exception as e:
+                            print(f"Error creating note from {pitch_name}: {e}")
+                            n = note.Rest(quarterLength=0.25)
+            
             s.append(n)
+            
+        except Exception as e:
+            print(f"Unexpected error processing note {idx} ({pitch_name}): {e}")
+            # Add a rest as fallback
+            n = note.Rest(quarterLength=0.25)
+            s.append(n)
+            
     return s
 
 @app.route('/')
@@ -107,66 +143,136 @@ def generate():
         from music21 import key as m21key, pitch as m21pitch, stream as m21stream, instrument as m21instrument
         model_path = 'lstm_trained_model.h5'
         vocab_path = 'pitchnames.pkl'
+        
+        # Load the model
         if os.path.exists(model_path):
             model = tf.keras.models.load_model(model_path)
             print(f"Loaded model with output shape: {model.output_shape}")
         else:
+            # If model doesn't exist, we need to create a default one
+            # First ensure we have pitchnames
+            if os.path.exists(vocab_path):
+                with open(vocab_path, 'rb') as f:
+                    pitchnames = pickle.load(f)
+                print(f"Loaded pitchnames length: {len(pitchnames)}")
+            else:
+                # Create a default set of pitchnames
+                pitchnames = [f"C{i}" for i in range(1, 6)] + [f"D{i}" for i in range(1, 6)] + \
+                             [f"E{i}" for i in range(1, 6)] + [f"F{i}" for i in range(1, 6)] + \
+                             [f"G{i}" for i in range(1, 6)] + [f"A{i}" for i in range(1, 6)] + \
+                             [f"B{i}" for i in range(1, 6)]
+                print(f"Created default pitchnames, length: {len(pitchnames)}")
+                # Save the default pitchnames
+                with open(vocab_path, 'wb') as f:
+                    pickle.dump(pitchnames, f)
+                
             input_shape = (50, 1)  # Adjusted input shape for trained model
             output_dim = len(pitchnames)
             model = build_lstm_model(input_shape, output_dim)
-        # Load pitchnames vocabulary
+            print(f"Created new model with output shape: {model.output.shape}")
+        
+        # Load or create pitchnames vocabulary
+        pitchnames = None
         if os.path.exists(vocab_path):
-            with open(vocab_path, 'rb') as f:
-                pitchnames = pickle.load(f)
-            print(f"Loaded pitchnames length: {len(pitchnames)}")
+            try:
+                with open(vocab_path, 'rb') as f:
+                    pitchnames = pickle.load(f)
+                print(f"Loaded pitchnames length: {len(pitchnames)}")
+            except Exception as e:
+                print(f"Error loading pitchnames: {e}")
+                # Create a default set as fallback
+                pitchnames = [f"C{i}" for i in range(1, 6)] + [f"D{i}" for i in range(1, 6)] + \
+                             [f"E{i}" for i in range(1, 6)] + [f"F{i}" for i in range(1, 6)] + \
+                             [f"G{i}" for i in range(1, 6)] + [f"A{i}" for i in range(1, 6)] + \
+                             [f"B{i}" for i in range(1, 6)]
+                print(f"Created default pitchnames, length: {len(pitchnames)}")
         else:
-            pitchnames = []
+            # Create a default set of pitchnames
+            pitchnames = [f"C{i}" for i in range(1, 6)] + [f"D{i}" for i in range(1, 6)] + \
+                         [f"E{i}" for i in range(1, 6)] + [f"F{i}" for i in range(1, 6)] + \
+                         [f"G{i}" for i in range(1, 6)] + [f"A{i}" for i in range(1, 6)] + \
+                         [f"B{i}" for i in range(1, 6)]
+            print(f"Created default pitchnames, length: {len(pitchnames)}")
+            # Save the default pitchnames
+            with open(vocab_path, 'wb') as f:
+                pickle.dump(pitchnames, f)
+        
         # Create a seed sequence with shape (50, 1) filled with zeros
         seed_sequence = np.zeros((50, 1))
         print(f"Seed sequence shape: {seed_sequence.shape}")
-        generated_sequence = generate_music(model, seed_sequence, length=length*50, vocab_size=len(pitchnames))  # length scaled
+        
+        # Generate music with our improved generation function
+        vocab_size = len(pitchnames) if pitchnames else 3803
+        generated_sequence = generate_music(
+            model, 
+            seed_sequence, 
+            length=length*50, 
+            vocab_size=vocab_size,
+            temperature=1.0,
+            key_signature=key_sig,
+            pitchnames=pitchnames
+        )
 
         def apply_music_theory_constraints(sequence, pitchnames, key_signature):
             """
             Adjust the generated sequence to fit the key signature scale.
             """
+            # If pitchnames is None or empty, return the original sequence
+            if not pitchnames:
+                print("Warning: No pitchnames provided for music theory constraints. Returning original sequence.")
+                return sequence
+                
             k = m21key.Key(key_signature)
             scale_pitches = [p.nameWithOctave for p in k.pitches]
             adjusted_sequence = []
+            
             for idx in sequence:
                 if idx == 0:
                     # Rest note, keep as is
                     adjusted_sequence.append(idx)
                     continue
+                    
+                # Check if index is valid
                 if idx >= len(pitchnames):
-                    # Invalid index, skip
-                    continue
+                    # Invalid index, use modulo to get a valid index
+                    idx = idx % len(pitchnames)
+                    
                 pitch_name = pitchnames[idx]
+                
                 # Skip chords (dot-separated pitch names)
                 if '.' in pitch_name:
                     adjusted_sequence.append(idx)
                     continue
+                    
                 # Check if pitch is in scale, if not, adjust to closest scale pitch
                 try:
                     base_pitch = m21pitch.Pitch(pitch_name)
-                except Exception:
+                except Exception as e:
                     # If pitch creation fails, keep original
+                    print(f"Warning: Failed to create pitch from {pitch_name}: {e}")
                     adjusted_sequence.append(idx)
                     continue
+                    
                 if base_pitch.nameWithOctave in scale_pitches:
                     adjusted_sequence.append(idx)
                 else:
-                    # Find closest pitch in scale by semitone distance
-                    distances = [(abs(base_pitch.midi - m21pitch.Pitch(p).midi), p) for p in scale_pitches]
-                    distances.sort(key=lambda x: x[0])
-                    closest_pitch_name = distances[0][1]
-                    # Map closest pitch name back to index in pitchnames
-                    if closest_pitch_name in pitchnames:
-                        adjusted_idx = pitchnames.index(closest_pitch_name)
-                        adjusted_sequence.append(adjusted_idx)
-                    else:
-                        # If not found, keep original
+                    try:
+                        # Find closest pitch in scale by semitone distance
+                        distances = [(abs(base_pitch.midi - m21pitch.Pitch(p).midi), p) for p in scale_pitches]
+                        distances.sort(key=lambda x: x[0])
+                        closest_pitch_name = distances[0][1]
+                        
+                        # Map closest pitch name back to index in pitchnames
+                        if closest_pitch_name in pitchnames:
+                            adjusted_idx = pitchnames.index(closest_pitch_name)
+                            adjusted_sequence.append(adjusted_idx)
+                        else:
+                            # If not found, keep original
+                            adjusted_sequence.append(idx)
+                    except Exception as e:
+                        print(f"Warning: Error adjusting pitch {pitch_name}: {e}")
                         adjusted_sequence.append(idx)
+                        
             return adjusted_sequence
 
         adjusted_sequence = apply_music_theory_constraints(generated_sequence, pitchnames, key_sig)

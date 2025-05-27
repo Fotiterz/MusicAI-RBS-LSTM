@@ -1,7 +1,9 @@
-flask
-tensorflow
-music21
-pydub
-numpy
-scipy
-pretty_midi
+flask>=2.0.0
+tensorflow>=2.5.0
+music21>=7.0.0
+pydub>=0.25.1
+numpy>=1.19.5
+scipy>=1.7.0
+pretty_midi>=0.2.9
+matplotlib>=3.4.0
+tqdm>=4.60.0
